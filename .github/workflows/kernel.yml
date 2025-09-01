@@ -1,0 +1,48 @@
+name: Build Linux Kernel (arm64)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  kernel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('**/Kconfig', 'linux/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-
+
+      - name: Install deps & ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev \
+            libelf-dev dwarves python3 rsync device-tree-compiler \
+            gcc-aarch64-linux-gnu ccache
+          echo 'export CCACHE_DIR=$HOME/.cache/ccache' >> $GITHUB_ENV
+          echo 'export PATH="/usr/lib/ccache:$PATH"' >> $GITHUB_ENV
+
+      - name: Build kernel (v6.12.y submodule)
+        run: |
+          chmod +x toolchain/build_linux_ci.sh
+          toolchain/build_linux_ci.sh linux
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-arm64-${{ github.sha }}
+          path: |
+            out/Image.gz
+            out/dtbs/*.dtb
+            out/modules.tar.zst
+          if-no-files-found: error
