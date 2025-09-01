@@ -34,7 +34,7 @@ jobs:
 
       - name: Build kernel (v6.12.y submodule)
         run: |
-          chmod +x toolchain/build_linux_ci.sh
+          toolchain/apply_linux_patches.sh linux patches/linux
           toolchain/build_linux_ci.sh linux
 
       - name: Upload artifacts
