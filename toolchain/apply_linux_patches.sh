@@ -42,11 +42,12 @@ git -C "$LINUX_DIR" config user.name  "ci-bot"
 git -C "$LINUX_DIR" config user.email "ci-bot@localhost"
 
 for p in "${PATCHES[@]}"; do
+  patch_abs="$(cd "$(dirname "$p")" && pwd)/$(basename "$p")"
   echo "  -> $(basename "$p")"
-  if ! git -C "$LINUX_DIR" am --3way --ignore-whitespace "$p"; then
+  if ! git -C "$LINUX_DIR" am --3way --ignore-whitespace "$patch_abs"; then
     echo "[!] 3-way apply failed for $(basename "$p"), retry without 3-way..."
     git -C "$LINUX_DIR" am --abort || true
-    git -C "$LINUX_DIR" am --ignore-whitespace "$p"
+    git -C "$LINUX_DIR" am --ignore-whitespace "$patch_abs"
   fi
 done
 
