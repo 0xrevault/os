@@ -9,11 +9,30 @@ jobs:
   kernel:
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout (with submodules)
+      - name: Checkout (no submodules)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 0
+          submodules: false
+          fetch-depth: 0  # keep full history for the main repo
+
+      - name: Read linux submodule commit
+        id: submod
+        run: |
+          LINUX_SHA="$(git ls-tree HEAD linux | awk '{print $3}')"
+          echo "sha=$LINUX_SHA" >> "$GITHUB_OUTPUT"
+          echo "[i] linux submodule sha: $LINUX_SHA"
+
+      - name: Restore linux source cache
+        uses: actions/cache@v4
+        with:
+          path: linux
+          key: linux-src-${{ steps.submod.outputs.sha }}
+
+      - name: Init/Update submodule (fast)
+        run: |
+          git submodule init
+          # use depth=1 for faster initial clone; patch script will unshallow if needed
+          git -c protocol.version=2 submodule update --force --recursive --depth=1
 
       - name: Cache ccache
         uses: actions/cache@v4
