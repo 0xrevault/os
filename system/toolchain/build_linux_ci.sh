@@ -7,7 +7,7 @@ set -euo pipefail
 #   toolchain/build_linux_ci.sh [linux_dir] [jobs]
 # ----------------------------------------
 
-LINUX_DIR="${1:-linux}"
+LINUX_DIR="${1:-submodules/linux}"
 JOBS="${2:-$(nproc)}"
 OUT_DIR="${PWD}/out"
 
