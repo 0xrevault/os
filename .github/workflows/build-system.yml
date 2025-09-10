@@ -18,14 +18,14 @@ jobs:
       - name: Read linux submodule commit
         id: submod
         run: |
-          LINUX_SHA="$(git ls-tree HEAD linux | awk '{print $3}')"
+          LINUX_SHA="$(git ls-tree HEAD submodules/linux | awk '{print $3}')"
           echo "sha=$LINUX_SHA" >> "$GITHUB_OUTPUT"
           echo "[i] linux submodule sha: $LINUX_SHA"
 
       - name: Restore linux source cache
         uses: actions/cache@v4
         with:
-          path: linux
+          path: submodules/linux
           key: linux-src-${{ steps.submod.outputs.sha }}
 
       - name: Init/Update submodule (fast)
@@ -38,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache
-          key: ccache-${{ runner.os }}-${{ hashFiles('**/Kconfig', 'linux/**') }}
+          key: ccache-${{ runner.os }}-${{ hashFiles('**/Kconfig', 'submodules/linux/**') }}
           restore-keys: |
             ccache-${{ runner.os }}-
 
@@ -54,10 +54,10 @@ jobs:
 
       - name: Build kernel (v6.12.y submodule)
         run: |
-          chmod +x toolchain/apply_linux_patches.sh
-          chmod +x toolchain/build_linux_ci.sh
-          toolchain/apply_linux_patches.sh linux patches/linux
-          toolchain/build_linux_ci.sh linux
+          chmod +x system/toolchain/apply_linux_patches.sh
+          chmod +x system/toolchain/build_linux_ci.sh
+          system/toolchain/apply_linux_patches.sh submodules/linux patches/linux
+          system/toolchain/build_linux_ci.sh submodules/linux
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
