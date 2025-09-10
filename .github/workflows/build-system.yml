@@ -56,7 +56,7 @@ jobs:
         run: |
           chmod +x system/toolchain/apply_linux_patches.sh
           chmod +x system/toolchain/build_linux_ci.sh
-          system/toolchain/apply_linux_patches.sh submodules/linux patches/linux
+          system/toolchain/apply_linux_patches.sh submodules/linux system/patches/linux
           system/toolchain/build_linux_ci.sh submodules/linux
 
       - name: Upload artifacts
