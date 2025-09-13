@@ -1,0 +1,67 @@
+name: Build & Deploy UI (Qt WebAssembly)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write   # to deploy
+  id-token: write
+
+jobs:
+  build_ui:
+    runs-on: ubuntu-24.04
+    outputs:
+      pages_path: ${{ steps.setout.outputs.path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Install Qt 6.9.2 (wasm)
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: 6.9.2
+          host: linux
+          target: wasm_singlethread
+          modules: "qtbase qtdeclarative qtquickcontrols2 qtshadertools"
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build python3
+
+      - name: Build UI via script
+        run: |
+          cd ui
+          export REVO_CI=1
+          chmod +x build-web.sh
+          ./build-web.sh
+
+      - name: Set output path for pages
+        id: setout
+        run: echo "path=ui/build-wasm" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact (full wasm build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-${{ github.sha }}
+          path: ui/build-wasm
+          if-no-files-found: error
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ui/build-wasm
+
+  deploy:
+    needs: build_ui
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v2

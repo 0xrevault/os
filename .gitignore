@@ -1,3 +1,5 @@
 *.o
 *.log
 .DS_Store
+
+build-wasm
