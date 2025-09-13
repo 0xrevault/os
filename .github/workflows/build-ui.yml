@@ -27,6 +27,7 @@ jobs:
           version: 6.9.2
           host: all_os
           target: wasm
+          arch: wasm_singlethread
           modules: "qtbase qtdeclarative qtquickcontrols2 qtshadertools"
 
       - name: Install build tools
