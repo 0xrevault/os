@@ -22,11 +22,11 @@ jobs:
           submodules: false
 
       - name: Install Qt 6.9.2 (wasm)
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: 6.9.2
-          host: linux
-          target: wasm_singlethread
+          host: all_os
+          target: wasm
           modules: "qtbase qtdeclarative qtquickcontrols2 qtshadertools"
 
       - name: Install build tools
