@@ -50,7 +50,12 @@ echo "QT_WASM_FLAVOR=$QT_WASM_FLAVOR"
 echo "QT_WASM=$QT_WASM"
 echo "QT_HOST_FLAVOR=$QT_HOST_FLAVOR"
 echo "QT_HOST=$QT_HOST"
-echo "EMSDK=$EMSDK"
+
+# Allow running without an external emsdk (Qt wasm ships its own clang); avoid
+# unbound variable errors when EMSDK is undefined in CI.
+: "${EMSDK:=}"
+
+echo "EMSDK=${EMSDK:-<unset>}"
 echo "BUILD_DIR=$BUILD_DIR"
 echo "BUILD_TYPE=$BUILD_TYPE"
 echo "PORT=$PORT"
@@ -60,7 +65,10 @@ echo "------------------------------------------------"
 command -v "$QTCMAKE_BIN" >/dev/null 2>&1 && "$QTCMAKE_BIN" --version || true
 command -v cmake >/dev/null 2>&1 && cmake --version || true
 command -v ninja >/dev/null 2>&1 && ninja --version || true
-command -v "$EMSDK"/upstream/emscripten/emcc >/dev/null 2>&1 && "$EMSDK"/upstream/emscripten/emcc -v | head -n1 || true
+# Show emcc version only if emsdk path available
+if [[ -n "$EMSDK" && -x "$EMSDK/upstream/emscripten/emcc" ]]; then
+  "$EMSDK/upstream/emscripten/emcc" -v | head -n1 || true
+fi
 echo "================================================"
 echo
 
@@ -117,5 +125,9 @@ if [[ -n "${REVO_CI:-}" || "${CI:-}" == "true" ]]; then
     ls -lh "$BUILD_DIR" | sed -n '1,50p' || true
     exit 0
 else
-    "$EMSDK"/upstream/emscripten/emrun --no_browser --port "$PORT" "$BUILD_DIR"
+    if [[ -n "$EMSDK" && -x "$EMSDK/upstream/emscripten/emrun" ]]; then
+      "$EMSDK/upstream/emscripten/emrun" --no_browser --port "$PORT" "$BUILD_DIR"
+    else
+      python3 -m http.server "$PORT" -d "$BUILD_DIR"
+    fi
 fi
