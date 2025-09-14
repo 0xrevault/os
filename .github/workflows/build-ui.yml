@@ -68,19 +68,19 @@ jobs:
 
       - name: Set output path for pages
         id: setout
-        run: echo "path=ui/build-wasm" >> $GITHUB_OUTPUT
+        run: echo "path=ui/build-test" >> $GITHUB_OUTPUT
 
       - name: Upload artifact (full wasm build)
         uses: actions/upload-artifact@v4
         with:
           name: ui-${{ github.sha }}
-          path: ui/build-wasm
+          path: ui/build-test
           if-no-files-found: error
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ui/build-wasm
+          path: ui/build-test
 
   deploy:
     needs: build_ui
