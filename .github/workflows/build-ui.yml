@@ -21,7 +21,6 @@ jobs:
         with:
           submodules: false
 
-      # 固定 emsdk 到 3.1.70（与 Qt 6.9.2 wasm 对齐）
       - name: Setup Emscripten (emsdk 3.1.70)
         uses: mymindstorm/setup-emsdk@v14
         with:
@@ -47,7 +46,6 @@ jobs:
       - name: Build UI via script
         env:
           QT_ROOT: ${{ runner.workspace }}/Qt
-          # 让 Qt wasm toolchain chainload 正确的 Emscripten.cmake
           QT_CHAINLOAD_TOOLCHAIN_FILE: ${{ env.EMSCRIPTEN }}/cmake/Modules/Platform/Emscripten.cmake
           CMAKE_GENERATOR: Ninja
           CMAKE_MAKE_PROGRAM: /usr/bin/ninja
@@ -85,10 +83,13 @@ jobs:
   deploy:
     needs: build_ui
     runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v2
+        id: deployment
+        uses: actions/deploy-pages@v4
