@@ -46,8 +46,8 @@ jobs:
           which qt-cmake || true
           qt-cmake --version || true
 
-          chmod +x build-web.sh
-          ./build-web.sh
+          chmod +x build-test.sh
+          ./build-test.sh
 
       - name: Set output path for pages
         id: setout
