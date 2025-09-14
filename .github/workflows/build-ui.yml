@@ -28,16 +28,24 @@ jobs:
           host: all_os
           target: wasm
           arch: wasm_singlethread
-          dir: ${{ env.HOME }}
           cache: true
 
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y ninja-build python3
 
       - name: Build UI via script
+        env:
+            QT_ROOT: ${{ runner.workspace }}/Qt
         run: |
           cd ui
           export REVO_CI=1
+
+          echo "QT_ROOT=$QT_ROOT"
+          echo "QT_ROOT_DIR=${QT_ROOT_DIR:-<unset>}  (from action)"
+          echo "QT_HOST_PATH=${QT_HOST_PATH:-<unset>} (from action)"
+          which qt-cmake || true
+          qt-cmake --version || true
+
           chmod +x build-web.sh
           ./build-web.sh
 
