@@ -21,19 +21,17 @@ jobs:
         with:
           submodules: false
 
-      # 1) 安装 Emscripten SDK（提供 emcc / em++ / Emscripten.cmake）
-      - name: Setup Emscripten (emsdk)
+      # 固定 emsdk 到 3.1.70（与 Qt 6.9.2 wasm 对齐）
+      - name: Setup Emscripten (emsdk 3.1.70)
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: latest
+          version: 3.1.70
       - name: Print emsdk info
         run: |
           echo "EMSDK=$EMSDK"
           echo "EMSCRIPTEN=$EMSCRIPTEN"
           which emcc && emcc -v
-          which em++ && em++ -v
 
-      # 2) 安装 Qt 6.9.2 (wasm)
       - name: Install Qt 6.9.2 (wasm)
         uses: jurplel/install-qt-action@v4
         with:
@@ -43,24 +41,16 @@ jobs:
           arch: wasm_singlethread
           cache: true
 
-      # 3) 安装构建工具（含 ninja）
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y ninja-build python3
 
-      # 4) 构建（为 Qt wasm 指定要 chainload 的 Emscripten toolchain）
       - name: Build UI via script
         env:
           QT_ROOT: ${{ runner.workspace }}/Qt
-          # 让 Qt 的 wasm toolchain 去 chainload 正确的 Emscripten.cmake
+          # 让 Qt wasm toolchain chainload 正确的 Emscripten.cmake
           QT_CHAINLOAD_TOOLCHAIN_FILE: ${{ env.EMSCRIPTEN }}/cmake/Modules/Platform/Emscripten.cmake
-          # 也可选用 EMSDK 路径（两者等价；保留一个即可）
-          # QT_CHAINLOAD_TOOLCHAIN_FILE: ${{ env.EMSDK }}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
-
-          # 强制用 Ninja（可被 build-test.sh 内的 qt-cmake 继承）
           CMAKE_GENERATOR: Ninja
           CMAKE_MAKE_PROGRAM: /usr/bin/ninja
-
-          # 标记 CI 场景（你脚本里已有判断）
           REVO_CI: "1"
         run: |
           cd ui
@@ -68,10 +58,8 @@ jobs:
           echo "QT_CHAINLOAD_TOOLCHAIN_FILE=${QT_CHAINLOAD_TOOLCHAIN_FILE}"
           echo "EMSDK=${EMSDK}"
           echo "EMSCRIPTEN=${EMSCRIPTEN}"
-
           echo "QT_ROOT_DIR=${QT_ROOT_DIR:-<unset>}  (from action)"
           echo "QT_HOST_PATH=${QT_HOST_PATH:-<unset>} (from action)"
-
           which qt-cmake || true
           qt-cmake --version || true
 
