@@ -2,7 +2,7 @@ name: Build & Deploy UI (Qt WebAssembly)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

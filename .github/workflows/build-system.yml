@@ -2,7 +2,7 @@ name: Build Linux Kernel (arm64)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: false
-          fetch-depth: 0  # keep full history for the main repo
+          fetch-depth: 0 # keep full history for the main repo
 
       - name: Read linux submodule commit
         id: submod
@@ -22,17 +22,17 @@ jobs:
           echo "sha=$LINUX_SHA" >> "$GITHUB_OUTPUT"
           echo "[i] linux submodule sha: $LINUX_SHA"
 
-      - name: Restore linux source cache
+      - name: Init/Update submodule (fast)
+        run: |
+          git submodule sync --recursive
+          # use depth=1 for faster initial clone; patch script will unshallow if needed
+          git -c protocol.version=2 submodule update --force --recursive --depth=1
+
+      - name: Cache linux source
         uses: actions/cache@v4
         with:
           path: submodules/linux
           key: linux-src-${{ steps.submod.outputs.sha }}
-
-      - name: Init/Update submodule (fast)
-        run: |
-          git submodule init
-          # use depth=1 for faster initial clone; patch script will unshallow if needed
-          git -c protocol.version=2 submodule update --force --recursive --depth=1
 
       - name: Cache ccache
         uses: actions/cache@v4
