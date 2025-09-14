@@ -10,8 +10,7 @@ set -Eeuo pipefail
 : "${BUILD_TYPE:=Release}"
 : "${PORT:=8080}"
 : "${SERVE_HOST:=0.0.0.0}"
-# 如果你的 HTML 产物名不同，可通过 APP_HTML 覆盖；否则脚本会自动猜。
-: "${APP_HTML:=}"
+: "${APP_HTML:=app_revo_wallet.html}"
 
 # 显式标记 CI 环境的开关（除 GitHub/GitLab 等自带 CI=true 外，你也可自己设）
 # export REVO_CI=1
@@ -36,7 +35,7 @@ QT_HOST_FLAVOR="$(detect_qt_host_flavor)"
 # 2) 组装路径
 QT_HOST="$QT_ROOT/$QT_VER/$QT_HOST_FLAVOR"
 QT_WASM="$QT_ROOT/$QT_VER/$QT_WASM_FLAVOR"
-QTCMAKE_BIN="$QT_WASM/bin/qt-cmake"   # 优先用目标套件内的 qt-cmake
+QTCMAKE_BIN="$QT_WASM/bin/qt-cmake"
 TOOLCHAIN_FILE="$QT_WASM/lib/cmake/Qt6/qt.toolchain.cmake"
 
 # 3) 打印环境信息（便于 debug）
@@ -51,64 +50,49 @@ echo "QT_WASM=$QT_WASM"
 echo "QT_HOST_FLAVOR=$QT_HOST_FLAVOR"
 echo "QT_HOST=$QT_HOST"
 
-# Allow running without an external emsdk (Qt wasm ships its own clang); avoid
-# unbound variable errors when EMSDK is undefined in CI.
-: "${EMSDK:=}"
-
+: "${EMSDK:=}"  # 允许无 EMSDK（Qt wasm 自带 clang）
 echo "EMSDK=${EMSDK:-<unset>}"
 echo "BUILD_DIR=$BUILD_DIR"
 echo "BUILD_TYPE=$BUILD_TYPE"
 echo "PORT=$PORT"
 echo "SERVE_HOST=$SERVE_HOST"
-echo "APP_HTML(env)=${APP_HTML:-<auto>}"
+echo "APP_HTML=$APP_HTML"
 echo "------------------------------------------------"
 command -v "$QTCMAKE_BIN" >/dev/null 2>&1 && "$QTCMAKE_BIN" --version || true
 command -v cmake >/dev/null 2>&1 && cmake --version || true
 command -v ninja >/dev/null 2>&1 && ninja --version || true
-# Show emcc version only if emsdk path available
 if [[ -n "$EMSDK" && -x "$EMSDK/upstream/emscripten/emcc" ]]; then
   "$EMSDK/upstream/emscripten/emcc" -v | head -n1 || true
 fi
 echo "================================================"
 echo
 
-# 4) 配置与编译
+if [[ ! -x "$QTCMAKE_BIN" ]]; then
+  echo "[ERROR] qt-cmake 未找到：$QTCMAKE_BIN" >&2
+  echo "        请确保已安装 Qt $QT_VER 的 $QT_WASM_FLAVOR 套件（路径形如：$QT_WASM）。" >&2
+  echo "        可以调整 QT_ROOT/QT_VER/QT_WASM_FLAVOR 环境变量，或修正 CI 安装步骤。" >&2
+  exit 2
+fi
+if [[ ! -d "$QT_WASM" ]]; then
+  echo "[ERROR] Qt wasm 套件目录不存在：$QT_WASM" >&2
+  exit 2
+fi
+if [[ ! -d "$QT_HOST" ]]; then
+  echo "[WARN] Qt host 套件目录不存在：$QT_HOST" >&2
+  echo "       仍会继续（多数情况下仅用于- DQT_HOST_PATH 指向 host Qt）。" >&2
+fi
+
+# 4) 配置与编译（只使用 qt-cmake；移除普通 cmake 兜底）
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
 
-if [[ -x "$QTCMAKE_BIN" ]]; then
-  # qt-cmake 会自动带上 toolchain；仍显式传 QT_HOST_PATH
-  "$QTCMAKE_BIN" -S . -B "$BUILD_DIR" \
-    -DQT_HOST_PATH="$QT_HOST" \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -G Ninja
-else
-  # 兜底：用标准 cmake + toolchain
-  cmake -S . -B "$BUILD_DIR" \
-    -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
-    -DQT_HOST_PATH="$QT_HOST" \
-    -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
-    -G Ninja
-fi
+"$QTCMAKE_BIN" -S . -B "$BUILD_DIR" \
+  -DQT_HOST_PATH="$QT_HOST" \
+  -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_FILE" \
+  -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+  -G Ninja
 
 cmake --build "$BUILD_DIR" -j"$(getconf _NPROCESSORS_ONLN || echo 8)"
-
-# 5) 解析 HTML 文件名（优先使用 env 覆盖；否则自动猜测）
-if [[ -z "${APP_HTML:-}" ]]; then
-  for cand in app_revo_wallet.html index.html; do
-    if [[ -f "$BUILD_DIR/$cand" ]]; then APP_HTML="$cand"; break; fi
-  done
-  if [[ -z "${APP_HTML:-}" ]]; then
-    # 取第一个 .html
-    shopt -s nullglob
-    htmls=("$BUILD_DIR"/*.html)
-    if (( ${#htmls[@]} )); then
-      APP_HTML="$(basename "${htmls[0]}")"
-    else
-      APP_HTML="app_revo_wallet.html"  # 最后兜底仅用于打印
-    fi
-  fi
-fi
 
 FULL_URL="http://${SERVE_HOST}:${PORT}/${APP_HTML}"
 echo
@@ -119,15 +103,14 @@ echo "URL               : $FULL_URL"
 echo "================================"
 echo
 
-# 6) 启动本地服务器
-# - 单线程 wasm 可用任意静态服；多线程 wasm 建议 emrun（包含 COOP/COEP 头）
+# 6) 启动本地服务器（CI 不启服务）
 if [[ -n "${REVO_CI:-}" || "${CI:-}" == "true" ]]; then
-    ls -lh "$BUILD_DIR" | sed -n '1,50p' || true
-    exit 0
+  ls -lh "$BUILD_DIR" | sed -n '1,50p' || true
+  exit 0
 else
-    if [[ -n "$EMSDK" && -x "$EMSDK/upstream/emscripten/emrun" ]]; then
-      "$EMSDK/upstream/emscripten/emrun" --no_browser --port "$PORT" "$BUILD_DIR"
-    else
-      python3 -m http.server "$PORT" -d "$BUILD_DIR"
-    fi
+  if [[ -n "$EMSDK" && -x "$EMSDK/upstream/emscripten/emrun" ]]; then
+    "$EMSDK"/upstream/emscripten/emrun --no_browser --port "$PORT" "$BUILD_DIR"
+  else
+    python3 -m http.server "$PORT" -d "$BUILD_DIR"
+  fi
 fi
