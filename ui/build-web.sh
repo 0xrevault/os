@@ -12,6 +12,10 @@ set -Eeuo pipefail
 : "${SERVE_HOST:=0.0.0.0}"
 : "${APP_HTML:=app_revo_wallet.html}"
 
+if [[ -n "${QT_ROOT_DIR:-}" ]]; then
+  QT_ROOT="$(dirname "$(dirname "$QT_ROOT_DIR")")"
+fi
+
 # 显式标记 CI 环境的开关（除 GitHub/GitLab 等自带 CI=true 外，你也可自己设）
 # export REVO_CI=1
 ### -------------------------------------------------------------
