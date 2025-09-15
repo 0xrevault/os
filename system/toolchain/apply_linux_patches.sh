@@ -2,8 +2,8 @@
 set -euo pipefail
 # Apply patch series in patches/linux to the linux submodule
 
-LINUX_DIR="${1:-linux}"
-PATCH_DIR="${2:-patches/linux}"
+LINUX_DIR="${1:-submodules/linux}"
+PATCH_DIR="${2:-system/patches/linux}"
 
 if [[ ! -d "$PATCH_DIR" ]]; then
   echo "[i] No patches directory '$PATCH_DIR' found. Skipping patch apply."
